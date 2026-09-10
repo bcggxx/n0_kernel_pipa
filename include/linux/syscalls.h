@@ -780,6 +780,8 @@ asmlinkage long sys_clone(unsigned long, unsigned long, int __user *,
 	       int __user *, unsigned long);
 #endif
 #endif
+struct clone_args;
+asmlinkage long sys_clone3(struct clone_args __user *uargs, size_t size);
 asmlinkage long sys_execve(const char __user *filename,
 		const char __user *const __user *argv,
 		const char __user *const __user *envp);
