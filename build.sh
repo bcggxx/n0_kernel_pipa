@@ -7,6 +7,21 @@
 #Fail pipeline if any command fails
 set -eo pipefail
 
+#0.构建目标选择 / Build target selection
+#默认构建 pipa_defconfig（类原生/通吃），传入 miui 时构建 MIUI/HyperOS 专用配置
+#By default pipa_defconfig (AOSP friendly) is built; pass "miui" to build the
+#MIUI/HyperOS specific configuration instead.
+BUILD_TARGET="${1:-aosp}"
+case "$BUILD_TARGET" in
+    miui)
+        DEFCONFIG="pipa_miui_defconfig"
+        ;;
+    *)
+        BUILD_TARGET="aosp"
+        DEFCONFIG="pipa_defconfig"
+        ;;
+esac
+
 #1.定义颜色输出 / Define color outputs
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
@@ -230,7 +245,11 @@ fi
 cd anykernel || { err "进入 anykernel 目录失败 / Failed to enter anykernel directory."; exit 1; }
 
 timestamp=$(date +%Y%m%d)
-ZIP_FILENAME="Kernel_N0_pipa_A16_AOSP_MIUI_${timestamp}.zip"
+if [ "$BUILD_TARGET" = "miui" ]; then
+    ZIP_FILENAME="Kernel_N0_pipa_A16_MIUI_${timestamp}.zip"
+else
+    ZIP_FILENAME="Kernel_N0_pipa_A16_AOSP_MIUI_${timestamp}.zip"
+fi
 
 #优化 zip 参数并排除多余文件
 #Optimize zip parameters and exclude unnecessary files

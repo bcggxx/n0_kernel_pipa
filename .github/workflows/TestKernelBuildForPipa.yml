@@ -47,7 +47,9 @@ jobs:
         run: chmod +x build.sh
 
       - name: Build Kernel (Test)
-        run: ./build.sh
+        env:
+          BUILD_TARGET: ${{ github.event.inputs.target || 'aosp' }}
+        run: ./build.sh "${BUILD_TARGET}"
 
       - name: Upload Kernel Zip
         uses: actions/upload-artifact@v7
