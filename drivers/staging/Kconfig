@@ -126,4 +126,10 @@ source "drivers/staging/qcacld-3.0/Kconfig"
 
 source "drivers/staging/binder_prio/Kconfig"
 
+source "drivers/staging/rtmm/Kconfig"
+
+source "drivers/staging/cam-reclaim/Kconfig"
+
+source "drivers/staging/mi-reclaim/Kconfig"
+
 endif # STAGING
