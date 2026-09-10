@@ -1,7 +1,19 @@
+#define pr_fmt(fmt) "millet-millet_hs: " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/millet.h>
+#include "millet.h"
+extern int millet_sendmsg(enum MILLET_TYPE type, struct task_struct *t,
+		struct millet_data *data);
+extern int millet_sendto_user(struct task_struct *tsk,
+		struct millet_data *data, struct millet_sock *sk);
+extern int register_millet_hook(int type, recv_hook recv_from, send_hook send_to,
+		init_hook init);
+extern int unregister_millet_hook(int type);
+extern int init_millet_subsystem(int type);
+
+
 
 static int hs_sendmsg(struct task_struct *tsk,
                 struct millet_data *data, struct millet_sock *sk)
@@ -23,6 +35,7 @@ static int hs_sendmsg(struct task_struct *tsk,
 static void hs_recv_hook(void *nouse, unsigned int len)
 {
 	struct millet_data data;
+
 	millet_sendmsg(HANDSHK_TYPE, current, &data);
 }
 
@@ -35,9 +48,10 @@ static void hs_init_millet(struct millet_sock *sk)
 static int __init millet_hs_init(void)
 {
 
-	pr_info("hs_register_hooks(millet hooks) success\n");
+	pr_err("enter millet_hs_init func!\n");
 	register_millet_hook(HANDSHK_TYPE, hs_recv_hook, hs_sendmsg,
 		hs_init_millet);
+	init_millet_subsystem(HANDSHK_TYPE);
 
 	return RET_OK;
 }

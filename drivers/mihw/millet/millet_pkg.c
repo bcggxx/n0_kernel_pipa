@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "millet-millet_pkg: " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
@@ -16,11 +18,21 @@
 #include <net/tcp.h>
 #include <net/inet_hashtables.h>
 #include <net/inet6_hashtables.h>
-#include <linux/millet.h>
+#include "millet.h"
 
 
 #define MAX_REC_UID 64
 static atomic_t uid_rec[MAX_REC_UID];
+extern int millet_sendmsg(enum MILLET_TYPE type, struct task_struct *t,
+		struct millet_data *data);
+extern int millet_sendto_user(struct task_struct *tsk,
+		struct millet_data *data, struct millet_sock *sk);
+extern int register_millet_hook(int type, recv_hook recv_from, send_hook send_to,
+		init_hook init);
+extern int unregister_millet_hook(int type);
+extern int init_millet_subsystem(int type);
+
+
 
 int pkg_stat_show(struct seq_file *m, void *v)
 {
@@ -149,10 +161,8 @@ static uid_t __sock_i_uid(struct sock *sk)
 {
 	uid_t uid;
 
-	if (sk) {
-		read_lock_bh(&sk->sk_callback_lock);
-		uid = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_uid.val : 0;
-		read_unlock_bh(&sk->sk_callback_lock);
+	if (sk && sk->sk_socket) {
+		uid = SOCK_INODE(sk->sk_socket)->i_uid.val;
 		return uid;
 	}
 
@@ -274,6 +284,8 @@ static int __init millet_pkg_init(void)
 	int i;
 	struct net *net = &init_net;
 
+	pr_err("enter millet_pkg_init func!\n");
+
 	for (i = 0; i < MAX_REC_UID; i++)
 		atomic_set(&uid_rec[i], 0);
 
@@ -285,6 +297,8 @@ static int __init millet_pkg_init(void)
 	pr_err("nf_register_hooks(millet hooks) success\n");
 	register_millet_hook(PKG_TYPE, pkg_recv_hook, pkg_sendmsg,
 			pkg_init_millet);
+	init_millet_subsystem(PKG_TYPE);
+
 	return RET_OK;
 }
 

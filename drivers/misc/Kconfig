@@ -648,6 +648,13 @@ config PERF_HELPER
 	help
 	  this module support record perf lock history and other perf messages.
 
+config BOOTUP_RECLAIM
+	bool "bootup reclaim"
+	depends on MEMCG
+	default n
+	help
+	  reclaim global memory when bootup
+
 config FORCE_FAST_CHARGE
 	bool "Force faster charge rate for USB"
 	default y
