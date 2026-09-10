@@ -36,6 +36,7 @@
 #include <asm/barrier.h>
 #include <linux/log2.h>
 #include <asm/unaligned.h>
+#include <trace/hooks/memory.h>
 
 /* Registers */
 #define BPF_R0	regs[BPF_REG_0]
@@ -921,6 +922,8 @@ void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 {
 	u32 pages = hdr->pages;
 
+	trace_android_vh_set_memory_rw((unsigned long)hdr, pages);
+	trace_android_vh_set_memory_nx((unsigned long)hdr, pages);
 	bpf_jit_free_exec(hdr);
 	bpf_jit_uncharge_modmem(pages);
 }

@@ -14,6 +14,7 @@
 #include <linux/hugetlb.h>
 #include <linux/vmalloc.h>
 #include <linux/userfaultfd_k.h>
+#include <trace/hooks/syscall_check.h>
 
 #include <asm/sections.h>
 #include <linux/uaccess.h>
@@ -373,6 +374,7 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 		if (populate)
 			mm_populate(ret, populate);
 	}
+	trace_android_vh_check_mmap_file(file, prot, flag, ret);
 	return ret;
 }
 
