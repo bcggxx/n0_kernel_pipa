@@ -8,10 +8,28 @@
  */
 
 #include <linux/sched.h>
+#include <linux/uaccess.h>
 
 struct task_struct;
 struct rusage;
 union thread_union;
+
+/* All the bits taken by the old clone syscall. */
+#define CLONE_LEGACY_FLAGS 0xffffffffULL
+
+struct kernel_clone_args {
+	u64 flags;
+	int __user *pidfd;
+	int __user *child_tid;
+	int __user *parent_tid;
+	int exit_signal;
+	unsigned long stack;
+	unsigned long stack_size;
+	unsigned long tls;
+	pid_t *set_tid;
+	/* Number of elements in *set_tid */
+	size_t set_tid_size;
+};
 
 /*
  * This serializes "schedule()" and also protects
