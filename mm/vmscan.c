@@ -2399,6 +2399,11 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 		goto out;
 	}
 
+#ifdef CONFIG_RTMM
+	if (unlikely(rtmm_reclaim(current->comm)))
+		swappiness = rtmm_reclaim_swappiness();
+#endif
+
 	/*
 	 * Global reclaim will swap to prevent OOM even with no
 	 * swappiness, but memcg users want to use this knob to

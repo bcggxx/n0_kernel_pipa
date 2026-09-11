@@ -12,6 +12,8 @@
 #include <linux/memcontrol.h>
 #include <linux/highmem.h>
 
+extern int isolate_lru_page(struct page *page);
+extern void putback_lru_page(struct page *page);
 extern unsigned long reclaim_pages_from_list(struct list_head *page_list,
 					     struct vm_area_struct *vma);
 

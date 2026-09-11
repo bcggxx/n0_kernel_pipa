@@ -2952,6 +2952,8 @@ static inline void setup_nr_node_ids(void) {}
 
 extern int want_old_faultaround_pte;
 
+struct mm_walk;
+
 #ifdef CONFIG_PROCESS_RECLAIM
 struct reclaim_param {
 	struct vm_area_struct *vma;
