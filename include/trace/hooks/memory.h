@@ -30,3 +30,6 @@ DECLARE_HOOK(android_vh_set_memory_rw,
 #endif /* _TRACE_HOOK_MEMORY_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
+
+/* do not leak the include path into later trace headers */
+#undef TRACE_INCLUDE_PATH

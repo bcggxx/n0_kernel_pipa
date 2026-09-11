@@ -900,8 +900,8 @@ emit_cond_jmp:
 		}
 		break;
 
-	case BPF_STX | BPF_ATOMIC | BPF_W:
-	case BPF_STX | BPF_ATOMIC | BPF_DW:
+	case BPF_STX | BPF_XADD | BPF_W:
+	case BPF_STX | BPF_XADD | BPF_DW:
 		if (insn->imm != BPF_ADD) {
 			pr_err_once("unknown atomic op code %02x\n", insn->imm);
 			return -EINVAL;
