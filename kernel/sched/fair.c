@@ -94,6 +94,18 @@ enum sched_tunable_scaling sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_N
 unsigned int sysctl_sched_base_slice			= 2800000ULL;
 static unsigned int normalized_sysctl_sched_base_slice	= 2800000ULL;
 
+/*
+ * 2026-09-12 (n0_kernel_pipa): 本树调度器已换成 EEVDF(以 sysctl_sched_base_slice
+ * 取代旧的 min_granularity), 但 kernel/sysctl.c:735 仍挂着
+ * "sched_min_granularity_ns" 条目引用本变量, 且 include/linux/sched/sysctl.h:28
+ * 仍有 extern 声明 —— 没有定义就链不过去(undefined symbol)。
+ *
+ * 这里保留为兼容变量: 该 sysctl 条目继续存在(设备启动脚本可能写它, 删条目
+ * 会有 ABI 风险), 但 EEVDF 路径**不读取**它 —— 调节它不再影响调度, 属预期的
+ * 行为变化(base_slice 才是真正的旋钮)。sched_proc_update_handler 也不依赖它。
+ */
+unsigned int sysctl_sched_min_granularity		= 750000ULL;
+
 const_debug unsigned int sysctl_sched_migration_cost	= 0UL;
 DEFINE_PER_CPU_READ_MOSTLY(int, sched_load_boost);
 
@@ -1392,7 +1404,9 @@ static void update_curr(struct cfs_rq *cfs_rq)
 		      max(delta_exec, curr->statistics.exec_max));
 
 	curr->sum_exec_runtime += delta_exec;
-	schedstat_add(cfs_rq->exec_clock, delta_exec);
+	/* 5.10 树此处为 schedstat_add(cfs_rq->exec_clock, delta_exec);
+	 * 本树无 schedstat_add 宏、cfs_rq 亦无 exec_clock 字段(backport 残留),
+	 * 该统计仅 debugfs schedstat 可见, 去掉不影响调度行为 */
 
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
 	resched = update_deadline(cfs_rq, curr);

@@ -308,6 +308,10 @@ static char *task_group_path(struct task_group *tg)
 }
 #endif
 
+/* fair.c 的非 static 函数(定义于 fair.c:922); sched.h:3290 的 extern 声明
+ * 在 WALT=n 配置下没能带进来, 本地补声明保证 debug.c 可见 */
+extern int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se);
+
 static void
 print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 {
@@ -319,7 +323,8 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 	SEQ_printf(m, "%15s %5d %9Ld.%06ld %c %9Ld.%06ld %c %9Ld.%06ld %9Ld.%06ld %9Ld %5d ",
 		p->comm, task_pid_nr(p),
 		SPLIT_NS(p->se.vruntime),
-		entity_eligible(cfs_rq_of(&p->se), &p->se) ? 'E' : 'N',
+		/* rq->cfs 即 p 所在 cfs_rq(本树 cfs_rq_of() 是 fair.c 内 static) */
+		entity_eligible(&rq->cfs, &p->se) ? 'E' : 'N',
 		SPLIT_NS(p->se.deadline),
 		p->se.custom_slice ? 'S' : ' ',
 		SPLIT_NS(p->se.slice),
@@ -392,7 +397,9 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	last = __pick_last_entity(cfs_rq);
 	if (last)
 		right_vruntime = last->vruntime;
-	min_vruntime = cfs_rq->min_vruntime;
+	/* 5.10 树此处还取 cfs_rq->min_vruntime; 本树 cfs_rq 无该字段
+	 * (只有 zero_vruntime/sum_w_vruntime, 走加权平均 avg_vruntime()),
+	 * 且下面也没有任何地方打印它 —— 直接去掉 */
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
 	sum_w_vruntime = cfs_rq->sum_w_vruntime;
 	avruntime = avg_vruntime(cfs_rq);
@@ -772,6 +779,10 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
 #define PN_SCHEDSTAT(F) \
 	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)schedstat_val(p->F)))
+/* 原树缺此宏, 但 852 行 P(util_est.enqueued) 用它 —— 低位是 UTIL_AVG_UNCHANGED 标志位,
+ * 打印时掩掉, 与 5.10 主线上游定义一致 */
+#define PM(F, M) \
+	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)((p->F) & (M)))
 
 	PN(se.exec_start);
 	PN(se.vruntime);

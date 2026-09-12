@@ -6,6 +6,7 @@
 #define _TRACE_SCHED_H
 
 #include <linux/sched/numa_balancing.h>
+#include <linux/sched/isolation.h>
 #include <linux/tracepoint.h>
 #include <linux/binfmts.h>
 
@@ -82,7 +83,9 @@ TRACE_EVENT(sched_enq_deq_task,
 		__entry->cpu		= task_cpu(p);
 		__entry->enqueue	= enqueue;
 		__entry->nr_running	= task_rq(p)->nr_running;
-		__entry->cpu_load	= task_rq(p)->cpu_load[0];
+		/* 5.10 树写作 task_rq(p)->cpu_load[0]; 本树 PELT 已无该数组,
+		 * 用等价的 PELT 负载 task_rq(p)->cfs.avg.load_avg 代替 */
+		__entry->cpu_load	= task_rq(p)->cfs.avg.load_avg;
 		__entry->rt_nr_running	= task_rq(p)->rt.rt_nr_running;
 		__entry->cpus_allowed	= cpus_allowed;
 		__entry->demand		= task_load(p);
@@ -725,7 +728,8 @@ TRACE_EVENT(sched_load_cfs_rq,
 		__trace_sched_path(cfs_rq, __get_dynamic_array(path),
 				   __get_dynamic_array_len(path));
 		__entry->load		= cfs_rq->avg.load_avg;
-		__entry->rbl_load 	= cfs_rq->avg.runnable_load_avg;
+		/* 本树 struct sched_avg 无 runnable_load_avg(5.10 字段名), 用 runnable_avg */
+		__entry->rbl_load 	= cfs_rq->avg.runnable_avg;
 		__entry->util		= cfs_rq->avg.util_avg;
 	),
 
@@ -831,7 +835,8 @@ TRACE_EVENT(sched_load_se,
 				      p ? TASK_COMM_LEN : sizeof("(null)"));
 		__entry->pid = p ? p->pid : -1;
 		__entry->load = se->avg.load_avg;
-		__entry->rbl_load = se->avg.runnable_load_avg;
+		/* 同上: 字段名差异, 本树只有 runnable_avg */
+		__entry->rbl_load = se->avg.runnable_avg;
 		__entry->util = se->avg.util_avg;
 	),
 
@@ -964,10 +969,18 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->capacity_curr      = capacity_curr_of(cpu);
 		__entry->capacity           = capacity_of(cpu);
 		__entry->capacity_orig      = capacity_orig_of(cpu);
-		__entry->idle_state         = idle_get_state_idx(cpu_rq(cpu));
+		/* idle_get_state_idx() 是 WALT/CAF 专有(cpu idle-state 索引),
+		 * 本树 PELT 无此追踪, 置 -1 = 未知, 保持 tracepoint ABI 不变 */
+		__entry->idle_state         = -1;
 		__entry->irqload            = sched_irqload(cpu);
 		__entry->online             = cpu_online(cpu);
+		/* cpu_isolated() 由 CONFIG_CPU_ISOLATION 提供; 本配置未开该选项,
+		 * 未开时 cpu_isolate 框架不存在 → 恒为 0(未隔离) */
+#ifdef CONFIG_CPU_ISOLATION
 		__entry->isolated           = cpu_isolated(cpu);
+#else
+		__entry->isolated           = 0;
+#endif
 		__entry->reserved           = is_reserved(cpu);
 		__entry->high_irq_load      = sched_cpu_high_irqload(cpu);
 		__entry->nr_rtg_high_prio_tasks = walt_nr_rtg_high_prio(cpu);
