@@ -144,6 +144,36 @@ fi
 msg "为 PIPA 配置 (pipa_defconfig) / Configuring for PIPA (pipa_defconfig)..."
 make $MAKE_ARGS pipa_defconfig
 
+#6.0.1 合并 Droidspaces 配置片段 / Merge the Droidspaces config fragment
+#patch-droidspaces 这个 composite action 只把 droidspaces.config 拷到
+#arch/arm64/configs/, 而配置片段必须经 merge_config.sh 合并才会进 .config。
+#只跑 `make pipa_defconfig` 的话该片段会被完全忽略 —— 结果是 Droidspaces
+#打上了 patch 却依然起不来(缺 UTS_NS/PID_NS/SYSVIPC 等)。
+#Merge rules live in scripts/kconfig/Makefile (%.config target).
+if [ -f "arch/arm64/configs/droidspaces.config" ]; then
+    msg "合并 Droidspaces 配置片段 / Merging Droidspaces config fragment..."
+    ./scripts/kconfig/merge_config.sh -O out -m out/.config arch/arm64/configs/droidspaces.config
+    make $MAKE_ARGS olddefconfig
+
+    #校验关键符号确实进了 .config，缺失则明确失败而不是静默出一个不能用的内核
+    #Verify the key symbols really landed in .config; fail loudly otherwise
+    DROIDSPACES_MISSING=""
+    for sym in CONFIG_UTS_NS CONFIG_PID_NS CONFIG_IPC_NS CONFIG_NET_NS \
+               CONFIG_SYSVIPC CONFIG_OVERLAY_FS CONFIG_CGROUP_DEVICE CONFIG_DEVTMPFS; do
+        if ! grep -q "^${sym}=y" out/.config; then
+            DROIDSPACES_MISSING="${DROIDSPACES_MISSING} ${sym}"
+        fi
+    done
+    if [ -n "$DROIDSPACES_MISSING" ]; then
+        err "Droidspaces 配置未生效，缺少:${DROIDSPACES_MISSING}" \
+            "Droidspaces config not applied, missing:${DROIDSPACES_MISSING}"
+        exit 1
+    fi
+    msg "Droidspaces 配置已合并并通过校验 / Droidspaces config merged and verified."
+else
+    warn "未找到 arch/arm64/configs/droidspaces.config，跳过 / not found, skipping."
+fi
+
 #6.1 按内存动态计算并行度 / Compute parallelism based on available memory
 #本工具链启用 thin-LTO + polly，单个 clang 进程峰值约 1.5~2GB。
 #直接使用 -j$(nproc) 在低内存机器上会因并行 clang 实例过多导致 OOM /
