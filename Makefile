@@ -691,9 +691,11 @@ else ifeq ($(cc-name),clang)
 KBUILD_CFLAGS   += -mllvm -hot-cold-split=true
 # Enable MLGO optimizations for register allocation
 KBUILD_CFLAGS   += -mllvm -regalloc-enable-advisor=release
-KBUILD_CFLAGS   += -O3 -march=armv8.2-a+lse+crypto+dotprod --cuda-path=/dev/null
-KBUILD_AFLAGS   += -O3 -march=armv8.2-a+lse+crypto+dotprod
-KBUILD_LDFLAGS  += -O3 --plugin-opt=O3
+# 2026-09-12: 原为 -O3, 编 drivers/staging/qca-wifi-host-cmn/.../dp_rx.o 时
+# clang-19 "LLVM ERROR: out of memory"(31G 内存仍爆)。降为上游默认的 -O2。
+KBUILD_CFLAGS   += -O2 -march=armv8.2-a+lse+crypto+dotprod --cuda-path=/dev/null
+KBUILD_AFLAGS   += -O2 -march=armv8.2-a+lse+crypto+dotprod
+KBUILD_LDFLAGS  += -O2 --plugin-opt=O2
 KBUILD_LDFLAGS  += -mllvm -regalloc-enable-advisor=release
 KBUILD_LDFLAGS  += -mllvm -enable-ml-inliner=release
 else
