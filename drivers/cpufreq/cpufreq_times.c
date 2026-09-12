@@ -571,11 +571,11 @@ int single_uid_time_in_state_open(struct inode *inode, struct file *file)
 			&(inode->i_uid));
 }
 
-static const struct file_operations uid_time_in_state_fops = {
-	.open		= uid_time_in_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops uid_time_in_state_fops = {
+	.proc_open	= uid_time_in_state_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static const struct seq_operations concurrent_active_time_seq_ops = {
@@ -590,11 +590,11 @@ static int concurrent_active_time_open(struct inode *inode, struct file *file)
 	return seq_open(file, &concurrent_active_time_seq_ops);
 }
 
-static const struct file_operations concurrent_active_time_fops = {
-	.open		= concurrent_active_time_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops concurrent_active_time_fops = {
+	.proc_open	= concurrent_active_time_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static const struct seq_operations concurrent_policy_time_seq_ops = {
@@ -609,11 +609,11 @@ static int concurrent_policy_time_open(struct inode *inode, struct file *file)
 	return seq_open(file, &concurrent_policy_time_seq_ops);
 }
 
-static const struct file_operations concurrent_policy_time_fops = {
-	.open		= concurrent_policy_time_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops concurrent_policy_time_fops = {
+	.proc_open	= concurrent_policy_time_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static int __init cpufreq_times_init(void)

@@ -1976,6 +1976,9 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 				  const struct cpumask *new_mask, bool check)
 {
 	const struct cpumask *cpu_valid_mask = cpu_active_mask;
+#ifdef CONFIG_SCHED_WALT
+	cpumask_t allowed_mask;
+#endif
 	unsigned int dest_cpu;
 	struct rq_flags rf;
 	struct rq *rq;
@@ -4101,6 +4104,24 @@ unsigned long nr_iowait_cpu(int cpu)
 {
 	struct rq *this = cpu_rq(cpu);
 	return atomic_read(&this->nr_iowait);
+}
+
+/*
+ * 2026-09-12 (n0_kernel_pipa): 本树 5.10 backport 遗漏。
+ * include/linux/sched/stat.h 已声明 get_iowait_load(),
+ * drivers/cpuidle/governors/menu.c:311 在 menu_select() 里调用它,
+ * 但全树无定义 → vmlinux 链接 "undefined symbol: get_iowait_load"。
+ * 实现取自同源 crdroid16-kernel/kernel/sched/core.c(紧邻 nr_iowait_cpu), 但那里
+ * 用的是 rq->load.weight —— 本树 struct rq 没有 load 成员(随 EEVDF 移除), CFS
+ * 的权重在 rq->cfs.load.weight(fair.c 的 enqueue/dequeue 经 update_load_add/sub
+ * 维护), 故改用它。
+ * 注意调用方在 cpuidle menu governor, 与 CONFIG_SMP 无关, 故不加 SMP 保护。
+ */
+void get_iowait_load(unsigned long *nr_waiters, unsigned long *load)
+{
+	struct rq *rq = this_rq();
+	*nr_waiters = atomic_read(&rq->nr_iowait);
+	*load = rq->cfs.load.weight;
 }
 
 #ifdef CONFIG_SMP

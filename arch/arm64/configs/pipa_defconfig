@@ -837,6 +837,28 @@ CONFIG_CRYPTO_ANSI_CPRNG=y
 CONFIG_CRYPTO_DEV_QCOM_MSM_QCE=y
 CONFIG_CRYPTO_DEV_QCRYPTO=y
 CONFIG_CRYPTO_DEV_QCEDEV=y
+# 2026-09-12: Inline Crypto Engine(UFS 硬件内联加密)驱动。Kconfig 是 `default n`,
+# 之前 defconfig 里既没写 y 也没像 pipa_stock-defconfig 那样显式 not set, 结果整个
+# 内联加密栈 BLK_INLINE_ENCRYPTION / SCSI_UFS_CRYPTO{,_QTI} / DM_DEFAULT_KEY 都开了,
+# 唯独少了让它们真正工作的这个硬件驱动。
+# 后果: Infinity-X 的 fstab.qcom 里 /data(userdata) 那行是
+#   fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized+wrappedkey_v0,
+#   metadata_encryption=aes-256-xts:wrappedkey_v0,
+#   keydirectory=/metadata/vold/metadata_encryption,
+#   sysfs_path=/sys/devices/platform/soc/1d84000.ufshc
+# 即 metadata 加密要用硬件包装密钥(blk-crypto wrapped key), 由 vold 建 dm-default-key。
+# 本树 drivers/md/dm-default-key.c 全走 blk-crypto 硬件路径(零处 crypto_skcipher):
+#   wrappedkey_v0 ⇒ dkc->is_hw_wrapped = true
+#   ⇒ blk_crypto_start_using_mode(..., is_hw_wrapped_key=true, q)
+#   ⇒ keyslot_manager_crypto_mode_supported() 见 q->ksm == NULL 直接返回 false
+#     (软件回退 blk_crypto_fallback_start_using_mode() 在这条路上根本不会被调用)
+#   ⇒ -EOPNOTSUPP ⇒ dm-default-key target ctr 失败 ⇒ vold 挂不上 /data
+#   ⇒ vold 服务带 reboot_on_failure ⇒ init 关闭系统并重启。
+# adbd 从未启动 ⇒ USB 总线上完全不枚举设备(不只是 adb 连不上), 配上
+# CONFIG_PANIC_TIMEOUT=5 就表现为卡开机 logo 循环。
+# 注意: /metadata 本身是明文 ext4(实机挂的是裸 sda18, 不是 dm), 不需要 ICE。
+# 对照: 同 ROM 官方内核与能正常启动的自编内核 CRYPTO_DEV_QCOM_ICE 均为 y。
+CONFIG_CRYPTO_DEV_QCOM_ICE=y
 CONFIG_PRINTK_TIME=y
 CONFIG_FRAME_WARN=0
 CONFIG_MAGIC_SYSRQ=y
