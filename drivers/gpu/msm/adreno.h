@@ -375,6 +375,9 @@ enum gpu_coresight_sources {
 	GPU_CORESIGHT_MAX,
 };
 
+/* 只用指针, 前置声明即可(真正定义由 adreno_coresight.c 的 <linux/coresight.h> 带入) */
+struct coresight_device;
+
 /**
  * struct adreno_device - The mothership structure for all adreno related info
  * @dev: Reference to struct kgsl_device
@@ -529,6 +532,8 @@ struct adreno_device {
 	unsigned int highest_bank_bit;
 	unsigned int quirks;
 
+	/* coresight trace bus 设备(GX/CX 两路), 同源树 crdroid16-kernel 同位置 */
+	struct coresight_device *csdev[GPU_CORESIGHT_MAX];
 	uint32_t gpmu_throttle_counters[ADRENO_GPMU_THROTTLE_COUNTERS];
 	struct work_struct irq_storm_work;
 
@@ -568,6 +573,9 @@ enum adreno_device_flags {
 	ADRENO_DEVICE_PWRON = 0,
 	ADRENO_DEVICE_PWRON_FIXUP = 1,
 	ADRENO_DEVICE_INITIALIZED = 2,
+	/* CORESIGHT 标志: adreno_coresight.c 引用但枚举漏了(3 号位本是 CORESIGHT,
+	 * 从 crdroid16-kernel 同源树补齐, 见该树 adreno.h:598) */
+	ADRENO_DEVICE_CORESIGHT = 3,
 	ADRENO_DEVICE_HANG_INTR = 4,
 	ADRENO_DEVICE_STARTED = 5,
 	ADRENO_DEVICE_FAULT = 6,
@@ -578,6 +586,8 @@ enum adreno_device_flags {
 	ADRENO_DEVICE_GPMU_INITIALIZED = 11,
 	ADRENO_DEVICE_ISDB_ENABLED = 12,
 	ADRENO_DEVICE_CACHE_FLUSH_TS_SUSPENDED = 13,
+	/* 同上: CX(compute)侧 coresight 标志位, 同源树为 14 */
+	ADRENO_DEVICE_CORESIGHT_CX = 14,
 };
 
 /**
