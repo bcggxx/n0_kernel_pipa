@@ -82,11 +82,13 @@ TRACE_EVENT(sched_enq_deq_task,
 		__entry->cpu		= task_cpu(p);
 		__entry->enqueue	= enqueue;
 		__entry->nr_running	= task_rq(p)->nr_running;
-		__entry->cpu_load	= task_rq(p)->cpu_load[0];
 		__entry->rt_nr_running	= task_rq(p)->rt.rt_nr_running;
 		__entry->cpus_allowed	= cpus_allowed;
 		__entry->demand		= task_load(p);
 		__entry->pred_demand	= task_pl(p);
+#ifdef CONFIG_SCHED_WALT
+		__entry->cpu_load	= task_rq(p)->cpu_load[0];
+#endif
 	),
 
 	TP_printk("cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u cpu_load=%lu rt_nr_running=%u affine=%x demand=%u pred_demand=%u",
@@ -725,8 +727,10 @@ TRACE_EVENT(sched_load_cfs_rq,
 		__trace_sched_path(cfs_rq, __get_dynamic_array(path),
 				   __get_dynamic_array_len(path));
 		__entry->load		= cfs_rq->avg.load_avg;
-		__entry->rbl_load 	= cfs_rq->avg.runnable_load_avg;
 		__entry->util		= cfs_rq->avg.util_avg;
+#ifdef CONFIG_SCHED_WALT
+		__entry->rbl_load 	= cfs_rq->avg.runnable_load_avg;
+#endif
 	),
 
 	TP_printk("cpu=%d path=%s load=%lu rbl_load=%lu util=%lu",
@@ -831,8 +835,10 @@ TRACE_EVENT(sched_load_se,
 				      p ? TASK_COMM_LEN : sizeof("(null)"));
 		__entry->pid = p ? p->pid : -1;
 		__entry->load = se->avg.load_avg;
-		__entry->rbl_load = se->avg.runnable_load_avg;
 		__entry->util = se->avg.util_avg;
+#ifdef CONFIG_SCHED_WALT
+		__entry->rbl_load = se->avg.runnable_load_avg;
+#endif
 	),
 
 	TP_printk("cpu=%d path=%s comm=%s pid=%d load=%lu rbl_load=%lu util=%lu",
@@ -964,13 +970,15 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->capacity_curr      = capacity_curr_of(cpu);
 		__entry->capacity           = capacity_of(cpu);
 		__entry->capacity_orig      = capacity_orig_of(cpu);
+		__entry->online             = cpu_online(cpu);
+		__entry->reserved           = is_reserved(cpu);
+#ifdef CONFIG_SCHED_WALT
 		__entry->idle_state         = idle_get_state_idx(cpu_rq(cpu));
 		__entry->irqload            = sched_irqload(cpu);
-		__entry->online             = cpu_online(cpu);
 		__entry->isolated           = cpu_isolated(cpu);
-		__entry->reserved           = is_reserved(cpu);
 		__entry->high_irq_load      = sched_cpu_high_irqload(cpu);
 		__entry->nr_rtg_high_prio_tasks = walt_nr_rtg_high_prio(cpu);
+#endif
 	),
 
 	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%u capacity=%u capacity_orig=%u idle_state=%d irqload=%llu online=%u, isolated=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u",
