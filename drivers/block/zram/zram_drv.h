@@ -54,6 +54,10 @@ enum zram_pageflags {
 	ZRAM_COMP_PRIORITY_BIT1, /* First bit of comp priority index */
 	ZRAM_COMP_PRIORITY_BIT2, /* Second bit of comp priority index */
 
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+	ZRAM_COMPRESS_LOW,	/* page is compressed with a low ratio */
+#endif
+
 	__NR_ZRAM_PAGEFLAGS,
 };
 
@@ -87,6 +91,10 @@ struct zram_stats {
 	atomic64_t bd_count;		/* no. of pages in backing device */
 	atomic64_t bd_reads;		/* no. of reads from backing device */
 	atomic64_t bd_writes;		/* no. of writes from backing device */
+#endif
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+	atomic64_t lowratio_pages;	/* no. of low ratio compressed pages */
+	atomic64_t wb_pages_max;	/* no. of maximum pages in backing device */
 #endif
 };
 

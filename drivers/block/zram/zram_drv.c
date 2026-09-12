@@ -52,6 +52,29 @@ static unsigned int num_devices = 1;
  */
 static size_t huge_class_size;
 
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+/*
+ * A page is accounted as low ratio when compressing it saves less than
+ * this percentage of the original size.
+ */
+static unsigned int glow_compress_ratio = 75;
+
+static inline void update_wb_pages_max(struct zram *zram,
+				       const s64 wb_pages)
+{
+	unsigned long old_max, cur_max;
+
+	old_max = atomic_long_read(&zram->stats.wb_pages_max);
+
+	do {
+		cur_max = old_max;
+		if (wb_pages > cur_max)
+			old_max = atomic_long_cmpxchg(
+				&zram->stats.wb_pages_max, cur_max, wb_pages);
+	} while (old_max != cur_max);
+}
+#endif
+
 static const struct block_device_operations zram_devops;
 
 static void zram_free_page(struct zram *zram, size_t index);
@@ -723,6 +746,9 @@ retry:
 		goto retry;
 
 	atomic64_inc(&zram->stats.bd_count);
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+	update_wb_pages_max(zram, atomic64_read(&zram->stats.bd_count));
+#endif
 	return blk_idx;
 }
 
@@ -1441,7 +1467,11 @@ static ssize_t mm_stat_show(struct device *dev,
 	max_used = atomic_long_read(&zram->stats.max_used_pages);
 
 	ret = scnprintf(buf, PAGE_SIZE,
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+			"%8llu %8llu %8llu %8lu %8ld %8llu %8lu %8llu %8llu %8llu\n",
+#else
 			"%8llu %8llu %8llu %8lu %8ld %8llu %8lu %8llu %8llu\n",
+#endif
 			orig_size << PAGE_SHIFT,
 			(u64)atomic64_read(&zram->stats.compr_data_size),
 			mem_used << PAGE_SHIFT,
@@ -1450,7 +1480,12 @@ static ssize_t mm_stat_show(struct device *dev,
 			(u64)atomic64_read(&zram->stats.same_pages),
 			atomic_long_read(&pool_stats.pages_compacted),
 			(u64)atomic64_read(&zram->stats.huge_pages),
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+			(u64)atomic64_read(&zram->stats.huge_pages_since),
+			(u64)atomic64_read(&zram->stats.lowratio_pages));
+#else
 			(u64)atomic64_read(&zram->stats.huge_pages_since));
+#endif
 	up_read(&zram->init_lock);
 
 	return ret;
@@ -1493,12 +1528,52 @@ static ssize_t debug_stat_show(struct device *dev,
 	return ret;
 }
 
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+static ssize_t wb_pages_max_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct zram *zram = dev_to_zram(dev);
+	ssize_t ret;
+
+	down_read(&zram->init_lock);
+	ret = scnprintf(buf, PAGE_SIZE, "%8llu\n",
+			(u64)atomic64_read(&zram->stats.wb_pages_max));
+	up_read(&zram->init_lock);
+
+	return ret;
+}
+
+static ssize_t glow_compress_ratio_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u\n", glow_compress_ratio);
+}
+
+static ssize_t glow_compress_ratio_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val))
+		return -EINVAL;
+	if (val > 100)
+		return -EINVAL;
+
+	glow_compress_ratio = val;
+	return len;
+}
+#endif
+
 static DEVICE_ATTR_RO(io_stat);
 static DEVICE_ATTR_RO(mm_stat);
 #ifdef CONFIG_ZRAM_WRITEBACK
 static DEVICE_ATTR_RO(bd_stat);
 #endif
 static DEVICE_ATTR_RO(debug_stat);
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+static DEVICE_ATTR_RO(wb_pages_max);
+static DEVICE_ATTR_RW(glow_compress_ratio);
+#endif
 
 static void zram_meta_free(struct zram *zram, u64 disksize)
 {
@@ -1559,6 +1634,13 @@ static void zram_free_page(struct zram *zram, size_t index)
 		zram_clear_flag(zram, index, ZRAM_HUGE);
 		atomic64_dec(&zram->stats.huge_pages);
 	}
+
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+	if (zram_test_flag(zram, index, ZRAM_COMPRESS_LOW)) {
+		zram_clear_flag(zram, index, ZRAM_COMPRESS_LOW);
+		atomic64_dec(&zram->stats.lowratio_pages);
+	}
+#endif
 
 	if (zram_test_flag(zram, index, ZRAM_WB)) {
 		zram_clear_flag(zram, index, ZRAM_WB);
@@ -1824,11 +1906,19 @@ static int zram_write_page(struct zram *zram, struct page *page, u32 index)
 	zram_slot_lock(zram, index);
 	zram_set_handle(zram, index, handle);
 	zram_set_obj_size(zram, index, comp_len);
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+	if ((100 * (PAGE_SIZE - comp_len) / PAGE_SIZE) < glow_compress_ratio)
+		zram_set_flag(zram, index, ZRAM_COMPRESS_LOW);
+#endif
 	zram_slot_unlock(zram, index);
 
 	/* Update stats */
 	atomic64_inc(&zram->stats.pages_stored);
 	atomic64_add(comp_len, &zram->stats.compr_data_size);
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+	if (zram_test_flag(zram, index, ZRAM_COMPRESS_LOW))
+		atomic64_inc(&zram->stats.lowratio_pages);
+#endif
 
 	return ret;
 }
@@ -2583,6 +2673,10 @@ static struct attribute *zram_disk_attrs[] = {
 	&dev_attr_bd_stat.attr,
 #endif
 	&dev_attr_debug_stat.attr,
+#ifdef CONFIG_MIUI_ZRAM_MEMORY_TRACKING
+	&dev_attr_wb_pages_max.attr,
+	&dev_attr_glow_compress_ratio.attr,
+#endif
 #ifdef CONFIG_ZRAM_MULTI_COMP
 	&dev_attr_recomp_algorithm.attr,
 	&dev_attr_recompress.attr,
