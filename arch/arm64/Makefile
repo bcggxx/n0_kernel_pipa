@@ -59,6 +59,13 @@ endif
 KBUILD_CFLAGS	+= -mgeneral-regs-only
 KBUILD_CFLAGS	+= $(lseinstr) $(brokengasinst) $(compat_vdso)
 
+# The kernel's stack canary is the global __stack_chk_guard (see
+# asm/stackprotector.h), but clang defaults to the userspace ABI's
+# TPIDR_EL0-relative canary on AArch64.  With that default the kernel
+# faults as soon as the first instrumented function runs, long before
+# any console exists.
+KBUILD_CFLAGS	+= $(call cc-option,-mstack-protector-guard=global)
+
 ifeq ($(CONFIG_ARCH_KONA), y)
 ifeq ($(cc-name),clang)
 KBUILD_CFLAGS   += -mcpu=cortex-a55
