@@ -2383,6 +2383,12 @@ DEFINE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
 EXPORT_SYMBOL(bpf_stats_enabled_key);
 
 /* All definitions of tracepoints related to BPF. */
+/*
+ * trace/hooks/memory.h above left TRACE_INCLUDE_PATH pointing at the
+ * hooks directory; reset it so the BPF trace events below resolve
+ * their own headers.
+ */
+#undef TRACE_INCLUDE_PATH
 #define CREATE_TRACE_POINTS
 #include <linux/bpf_trace.h>
 

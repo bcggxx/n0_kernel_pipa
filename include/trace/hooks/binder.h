@@ -74,6 +74,3 @@ DECLARE_HOOK(android_vh_binder_print_transaction_info,
 #endif /* _TRACE_HOOK_BINDER_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
-
-/* do not leak the include path into later trace headers */
-#undef TRACE_INCLUDE_PATH

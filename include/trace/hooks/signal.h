@@ -15,6 +15,3 @@ DECLARE_HOOK(android_vh_do_send_sig_info,
 #endif /* _TRACE_HOOK_SIGNAL_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
-
-/* do not leak the include path into later trace headers */
-#undef TRACE_INCLUDE_PATH

@@ -29,6 +29,3 @@ DECLARE_HOOK(android_vh_check_bpf_syscall,
 #endif /* _TRACE_HOOK_SYSCALL_CHECK_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
-
-/* do not leak the include path into later trace headers */
-#undef TRACE_INCLUDE_PATH
